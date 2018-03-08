@@ -46,7 +46,6 @@ Kareem.prototype.execPre = function(name, context, args, callback) {
           }
         })
       ];
-
       callMiddlewareFunction(pre.fn, context, args, args[0]);
     } else if (pre.fn.length > 0) {
       var args = [decorateNextFn(_next)];
@@ -54,7 +53,6 @@ Kareem.prototype.execPre = function(name, context, args, callback) {
       for (var i = 1; i < _args.length; ++i) {
         args.push(_args[i]);
       }
-
       callMiddlewareFunction(pre.fn, context, args, args[0]);
     } else {
       let error = null;
@@ -260,7 +258,6 @@ Kareem.prototype.wrap = function(name, fn, context, args, options) {
   var _this = this;
 
   options = options || {};
-
   this.execPre(name, context, args, function(error) {
     if (error) {
       var numCallbackParams = options.numCallbackParams || 0;
@@ -273,7 +270,13 @@ Kareem.prototype.wrap = function(name, fn, context, args, options) {
     }
 
     var end = (typeof lastArg === 'function' ? args.length - 1 : args.length);
-    fn.apply(context, args.slice(0, end).concat(_cb));
+    if (isAsyncFunction(fn, options)){
+      fn.apply(context, args.slice(0, end)).then(function(result){
+        _cb(null, result);
+      },(err)=>_cb(err));
+    }else{
+      fn.apply(context, args.slice(0, end).concat(_cb));
+    }
 
     function _cb() {
       var args = arguments;
@@ -306,12 +309,23 @@ Kareem.prototype.createWrapper = function(name, fn, context, options) {
   var _this = this;
   if (this._pres[name] == null && this._posts[name] == null) {
     // Fast path: if there's no hooks for this function, just return the function
-    return fn;
+    if (!isForceWrap(options))
+      return fn;
   }
   return function() {
     var _context = context || this;
     var args = Array.prototype.slice.call(arguments);
-    _this.wrap(name, fn, _context, args, options);
+    if(isAsyncFunction(fn, options)){
+      return new Promise(function(resolve, reject){
+        args.push(function(err, result){
+          if(err) return reject(err);
+          resolve(result);
+        })
+        _this.wrap(name, fn, _context, args, options);
+      });
+    }else{
+      _this.wrap(name, fn, _context, args, options);
+    }
   };
 };
 
@@ -391,6 +405,26 @@ function get(obj, key, def) {
     return obj[key];
   }
   return def;
+}
+
+function isAsyncFunction(fn, options){
+  var optionAsync = isExist(options) &&
+    isExist(options.asyncFunc) &&
+    options.asyncFunc;
+  var checkAsync = isExist(Symbol) &&
+    isExist(Symbol.toStringTag) &&
+    Object.getPrototypeOf(fn)[Symbol.toStringTag] == "AsyncFunction"
+  return optionAsync || checkAsync;
+}
+
+function isForceWrap(options){
+  return isExist(options) &&
+    isExist(options.forceWrap) &&
+    options.forceWrap;
+}
+
+function isExist(obj){
+  return typeof obj !== 'undefined';
 }
 
 function callMiddlewareFunction(fn, context, args, next) {

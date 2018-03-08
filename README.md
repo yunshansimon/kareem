@@ -24,11 +24,11 @@ appropriate, giving you more fine-grained control over your function hooks.
 #### It runs without any hooks specified
 
 ```javascript
-    
+
     hooks.execPre('cook', null, function() {
       done();
     });
-  
+
 ```
 
 #### It runs basic serial pre hooks
@@ -38,7 +38,7 @@ when your pre hook is finished.
 
 
 ```javascript
-    
+
     var count = 0;
 
     hooks.pre('cook', function(done) {
@@ -50,13 +50,13 @@ when your pre hook is finished.
       assert.equal(1, count);
       done();
     });
-  
+
 ```
 
 #### It can run multipe pre hooks
 
 ```javascript
-    
+
     var count1 = 0;
     var count2 = 0;
 
@@ -75,7 +75,7 @@ when your pre hook is finished.
       assert.equal(1, count2);
       done();
     });
-  
+
 ```
 
 #### It can run fully synchronous pre hooks
@@ -85,7 +85,7 @@ fully synchronous.
 
 
 ```javascript
-    
+
     var count1 = 0;
     var count2 = 0;
 
@@ -103,7 +103,7 @@ fully synchronous.
       assert.equal(1, count2);
       done();
     });
-  
+
 ```
 
 #### It properly attaches context to pre hooks
@@ -112,7 +112,7 @@ Pre save hook functions are bound to the second parameter to `execPre()`
 
 
 ```javascript
-    
+
     hooks.pre('cook', function(done) {
       this.bacon = 3;
       done();
@@ -132,7 +132,7 @@ Pre save hook functions are bound to the second parameter to `execPre()`
       assert.equal(4, obj.eggs);
       done();
     });
-  
+
 ```
 
 #### It can execute parallel (async) pre hooks
@@ -144,7 +144,7 @@ async pre hooks have called `done()`.
 
 
 ```javascript
-    
+
     hooks.pre('cook', true, function(next, done) {
       this.bacon = 3;
       next();
@@ -175,7 +175,7 @@ async pre hooks have called `done()`.
       assert.equal(false, obj.waffles);
       done();
     });
-  
+
 ```
 
 #### It supports returning a promise
@@ -186,7 +186,7 @@ next middleware.
 
 
 ```javascript
-    
+
     hooks.pre('cook', function() {
       return new Promise(resolve => {
         setTimeout(() => {
@@ -202,7 +202,7 @@ next middleware.
       assert.equal(3, obj.bacon);
       done();
     });
-  
+
 ```
 
 ## post hooks
@@ -210,19 +210,19 @@ next middleware.
 #### It runs without any hooks specified
 
 ```javascript
-    
+
     hooks.execPost('cook', null, [1], function(error, eggs) {
       assert.ifError(error);
       assert.equal(1, eggs);
       done();
     });
-  
+
 ```
 
 #### It executes with parameters passed in
 
 ```javascript
-    
+
     hooks.post('cook', function(eggs, bacon, callback) {
       assert.equal(1, eggs);
       assert.equal(2, bacon);
@@ -235,13 +235,13 @@ next middleware.
       assert.equal(2, bacon);
       done();
     });
-  
+
 ```
 
 #### It can use synchronous post hooks
 
 ```javascript
-    
+
     var execed = {};
 
     hooks.post('cook', function(eggs, bacon) {
@@ -266,7 +266,7 @@ next middleware.
       assert.equal(2, bacon);
       done();
     });
-  
+
 ```
 
 ## wrap()
@@ -274,7 +274,7 @@ next middleware.
 #### It wraps pre and post calls into one call
 
 ```javascript
-    
+
     hooks.pre('cook', true, function(next, done) {
       this.bacon = 3;
       next();
@@ -327,7 +327,7 @@ next middleware.
       },
       obj,
       args);
-  
+
 ```
 
 ## createWrapper()
@@ -335,7 +335,7 @@ next middleware.
 #### It wraps wrap() into a callable function
 
 ```javascript
-    
+
     hooks.pre('cook', true, function(next, done) {
       this.bacon = 3;
       next();
@@ -385,7 +385,7 @@ next middleware.
       assert.equal(obj, result);
       done();
     });
-  
+
 ```
 
 ## clone()
@@ -393,7 +393,7 @@ next middleware.
 #### It clones a Kareem object
 
 ```javascript
-    
+
     var k1 = new Kareem();
     k1.pre('cook', function() {});
     k1.post('cook', function() {});
@@ -401,7 +401,7 @@ next middleware.
     var k2 = k1.clone();
     assert.deepEqual(['cook'], Object.keys(k2._pres));
     assert.deepEqual(['cook'], Object.keys(k2._posts));
-  
+
 ```
 
 ## merge()
@@ -409,7 +409,7 @@ next middleware.
 #### It pulls hooks from another Kareem object
 
 ```javascript
-    
+
     var k1 = new Kareem();
     var test1 = function() {};
     k1.pre('cook', test1);
@@ -423,6 +423,56 @@ next middleware.
     assert.equal(k3._pres['cook'][0].fn, test2);
     assert.equal(k3._pres['cook'][1].fn, test1);
     assert.equal(k3._posts['cook'].length, 1);
-  
+
 ```
 
+# Works with Promise/async function
+
+## Wrap an async function:
+
+```javascript
+  var calledPre = 0;
+  var calledFn = 0;
+  var calledPost = 0;
+  hooks.pre('cook', async(done)=>++calledPre && done());
+  hooks.post('cook', async(callback)=>++calledPost);
+  var wrapper = hooks.createWrapper('cook', async function(){ ++calledFn});
+  await wrapper();
+  assert.equal(calledPre, 1);
+  assert.equal(calledFn, 1);
+  assert.equal(calledPost, 1);
+```
+
+## Wrap a function which returns a promise
+
+#### Set options.asyncFunc = true;
+#### Set options.forceWrap = ture, to fore wrap the function for bonding the pre/post hooks later.
+
+```javascript
+    var calledPre = 0;
+    var calledFn = 0;
+    var calledPost = 0;
+    var wrapper = hooks.createWrapper('cook',
+      function(a,b){return new Promise((resolve, rejece)=>{
+        ++calledFn;
+        b.a++;
+        resolve([++a, b]);
+      })},
+      null,
+      {
+        forceWrap:true,
+        asyncFunc:true
+      }
+    );
+    hooks.pre('cook', async(done)=>++calledPre && done());
+    hooks.post('cook', async(result)=>{
+      ++calledPost;
+      assert.equal(result[0], 2);
+      assert.equal(result[1].a, 3);
+    });
+    await wrapper(1,{a:2});
+    assert.equal(calledPre, 1);
+    assert.equal(calledFn, 1);
+    assert.equal(calledPost, 1);
+
+```

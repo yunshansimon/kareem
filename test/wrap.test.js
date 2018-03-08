@@ -339,4 +339,68 @@ describe('wrap()', function() {
     assert.equal(calledFn, 1);
     assert.equal(calledPost, 1);
   });
+
+  it('works with async pre/post/fn', async function(){
+    var calledPre = 0;
+    var calledFn = 0;
+    var calledPost = 0;
+    hooks.pre('cook', async(done)=>++calledPre && done());
+    hooks.post('cook', async(callback)=>++calledPost);
+    var wrapper = hooks.createWrapper('cook', async function(){ ++calledFn});
+    await wrapper();
+    assert.equal(calledPre, 1);
+    assert.equal(calledFn, 1);
+    assert.equal(calledPost, 1);
+  });
+
+  it('works with async pre/post/fn with args', async function(){
+    var calledPre = 0;
+    var calledFn = 0;
+    var calledPost = 0;
+    hooks.pre('cook', async(done, id)=>{
+      assert.equal(1, id);
+      calledPre++;
+      done();
+    });
+    hooks.post('cook', async(result)=>{
+      assert.equal(2,result);
+      calledPost++;
+    });
+    var wrapper = hooks.createWrapper('cook', async function(id){
+      calledFn++;
+      return ++id;
+    });
+    await wrapper(1);
+    assert.equal(calledPre, 1);
+    assert.equal(calledFn, 1);
+    assert.equal(calledPost, 1);
+  })
+
+  it('force wrap, works with the function returns a promise', async function(){
+    var calledPre = 0;
+    var calledFn = 0;
+    var calledPost = 0;
+    var wrapper = hooks.createWrapper('cook',
+      function(a,b){return new Promise((resolve, rejece)=>{
+        ++calledFn;
+        b.a++;
+        resolve([++a, b]);
+      })},
+      null,
+      {
+        forceWrap:true,
+        asyncFunc:true
+      }
+    );
+    hooks.pre('cook', async(done)=>++calledPre && done());
+    hooks.post('cook', async(result)=>{
+      ++calledPost;
+      assert.equal(result[0], 2);
+      assert.equal(result[1].a, 3);
+    });
+    await wrapper(1,{a:2});
+    assert.equal(calledPre, 1);
+    assert.equal(calledFn, 1);
+    assert.equal(calledPost, 1);
+  })
 });
