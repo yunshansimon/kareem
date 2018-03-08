@@ -405,7 +405,7 @@ describe('wrap()', function() {
     assert.equal(calledPost, 1);
   })
 
-  it("pre function's short-cut", async function(){
+  it("short-cut by pre-hook", async function(){
     var calledPre = 0;
     var calledFn = 0;
     var calledPost = 0;

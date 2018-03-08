@@ -460,8 +460,8 @@ next middleware.
       })},
       null,
       {
-        forceWrap:true,
-        asyncFunc:true
+        forceWrap:true,  // wrap the function before setting hooks.
+        asyncFunc:true   //tell the wrapper the function will return a promise.
       }
     );
     hooks.pre('cook', async(done)=>++calledPre && done());
@@ -475,4 +475,36 @@ next middleware.
     assert.equal(calledFn, 1);
     assert.equal(calledPost, 1);
 
+```
+
+## ShortCut by pre-hooks
+
+Sometime the pre-hook got the result(by cache), and need to terminate the
+wrapped function and return the result.
+
+#### send the result to done() function
+
+```javascript
+    var calledPre = 0;
+    var calledFn = 0;
+    var calledPost = 0;
+    hooks.pre('cook', async(done, id)=>{
+      assert.equal(1, id);
+      calledPre++;
+      done(null, 2);  //short-cut and return 2;
+    });
+    hooks.post('cook', async(result)=>{
+      assert.ok(false);
+      calledPost++;
+    });
+    var wrapper = hooks.createWrapper('cook', async function(id){
+      calledFn++;
+      return ++id;
+    });
+    var result = await wrapper(1);
+    assert.equal(result, 2); //got the right result by pre-hooks.
+    assert.equal(calledPre, 1);
+    assert.equal(calledFn, 0); //the wrapped function never run.
+    assert.equal(calledPost, 0);
+  })
 ```
