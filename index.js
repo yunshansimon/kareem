@@ -17,6 +17,7 @@ Kareem.prototype.execPre = function(name, context, args, callback) {
   var asyncPresLeft = numAsyncPres;
   var done = false;
   var $args = args;
+  var lastArg = (args.length > 0 ? args[args.length - 1] : null);
 
   if (!numPres) {
     return process.nextTick(function() {
@@ -83,7 +84,7 @@ Kareem.prototype.execPre = function(name, context, args, callback) {
 
   next.apply(null, [null].concat(args));
 
-  function _next(error) {
+  function _next(error,result) {
     if (error) {
       if (done) {
         return;
@@ -91,6 +92,8 @@ Kareem.prototype.execPre = function(name, context, args, callback) {
       done = true;
       return callback(error);
     }
+    if(result && typeof lastArg==='function')
+      return lastArg(null, result);
 
     if (++currentPre >= numPres) {
       if (asyncPresLeft > 0) {

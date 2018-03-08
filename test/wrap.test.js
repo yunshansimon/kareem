@@ -370,7 +370,8 @@ describe('wrap()', function() {
       calledFn++;
       return ++id;
     });
-    await wrapper(1);
+    var result = await wrapper(1);
+    assert.equal(result, 2);
     assert.equal(calledPre, 1);
     assert.equal(calledFn, 1);
     assert.equal(calledPost, 1);
@@ -402,5 +403,29 @@ describe('wrap()', function() {
     assert.equal(calledPre, 1);
     assert.equal(calledFn, 1);
     assert.equal(calledPost, 1);
+  })
+
+  it("pre function's short-cut", async function(){
+    var calledPre = 0;
+    var calledFn = 0;
+    var calledPost = 0;
+    hooks.pre('cook', async(done, id)=>{
+      assert.equal(1, id);
+      calledPre++;
+      done(null, 2);
+    });
+    hooks.post('cook', async(result)=>{
+      assert.ok(false);
+      calledPost++;
+    });
+    var wrapper = hooks.createWrapper('cook', async function(id){
+      calledFn++;
+      return ++id;
+    });
+    var result = await wrapper(1);
+    assert.equal(result, 2);
+    assert.equal(calledPre, 1);
+    assert.equal(calledFn, 0);
+    assert.equal(calledPost, 0);
   })
 });
