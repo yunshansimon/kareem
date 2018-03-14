@@ -313,7 +313,7 @@ Kareem.prototype.createWrapper = function(name, fn, context, options) {
   if (this._pres[name] == null && this._posts[name] == null) {
     // Fast path: if there's no hooks for this function, just return the function
     if (!isForceWrap(options))
-      return fn;
+      return context? fn.bind(context):fn;
   }
   return function() {
     var _context = context || this;
